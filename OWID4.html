@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>USGS Earthquake Live WDC</title>
+  <script src="https://unpkg.com/tableauwdc@2.3.0/dist/tableauwdc.min.js"></script>
+</head>
+<body>
+  <h2>USGS Live Earthquake Data (Last 24h)</h2>
+  <button id="connectButton">Connect to Tableau</button>
+
+  <script>
+    const myConnector = tableau.makeConnector();
+
+    myConnector.getSchema = function (schemaCallback) {
+      const cols = [
+        { id: "title", dataType: tableau.dataTypeEnum.string },
+        { id: "magnitude", dataType: tableau.dataTypeEnum.float },
+        { id: "place", dataType: tableau.dataTypeEnum.string },
+        { id: "time", dataType: tableau.dataTypeEnum.datetime },
+        { id: "longitude", dataType: tableau.dataTypeEnum.float },
+        { id: "latitude", dataType: tableau.dataTypeEnum.float },
+        { id: "depth", dataType: tableau.dataTypeEnum.float }
+      ];
+
+      const tableSchema = {
+        id: "usgs_earthquakes",
+        alias: "USGS Earthquake Events (Last 24 Hours)",
+        columns: cols
+      };
+
+      schemaCallback([tableSchema]);
+    };
+
+    myConnector.getData = function (table, doneCallback) {
+      fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson")
+        .then(res => res.json())
+        .then(data => {
+          const quakes = data.features.map(q => ({
+            title: q.properties.title,
+            magnitude: q.properties.mag,
+            place: q.properties.place,
+            time: new Date(q.properties.time),
+            longitude: q.geometry.coordinates[0],
+            latitude: q.geometry.coordinates[1],
+            depth: q.geometry.coordinates[2]
+          }));
+
+          table.appendRows(quakes);
+          doneCallback();
+        })
+        .catch(err => {
+          console.error("Earthquake API Error:", err);
+          doneCallback();
+        });
+    };
+
+    myConnector.init = function (initCallback) {
+      initCallback();
+    };
+
+    tableau.registerConnector(myConnector);
+
+    document.getElementById("connectButton").addEventListener("click", () => {
+      tableau.connectionName = "USGS Earthquake Data";
+      tableau.submit();
+    });
+  </script>
+</body>
+</html>
